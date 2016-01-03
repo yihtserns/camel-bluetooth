@@ -4,11 +4,11 @@ This component allows communication with another Bluetooth-enabled device.
 
 URI format
 ----------
-```groovy
+```
 bt:profile[?options]
 ```
 or
-```groovy
+```
 bt://profile[?options]
 ```
 
