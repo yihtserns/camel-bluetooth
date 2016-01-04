@@ -78,7 +78,7 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                                             String name = (String) headerSet.getHeader(HeaderSet.NAME);
 
                                             Exchange exchange = createExchange();
-                                            exchange.getIn().setBody(op);
+                                            exchange.getIn().setBody(op.openInputStream());
                                             exchange.getIn().setHeader(Exchange.FILE_NAME, name);
 
                                             getProcessor().process(exchange);
