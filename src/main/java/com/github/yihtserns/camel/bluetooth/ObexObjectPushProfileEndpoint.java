@@ -79,7 +79,7 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
 
                                             Exchange exchange = createExchange();
                                             exchange.getIn().setBody(op);
-                                            exchange.getIn().setHeader("Name", name);
+                                            exchange.getIn().setHeader(Exchange.FILE_NAME, name);
 
                                             getProcessor().process(exchange);
                                             return ResponseCodes.OBEX_HTTP_OK;
