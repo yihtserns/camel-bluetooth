@@ -29,6 +29,7 @@ import javax.obex.SessionNotifier;
 import org.apache.camel.Component;
 import org.apache.camel.Consumer;
 import org.apache.camel.Exchange;
+import org.apache.camel.Message;
 import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultConsumer;
@@ -98,11 +99,13 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                 public int onPut(Operation op) {
                     try {
                         HeaderSet headerSet = op.getReceivedHeaders();
-                        String name = (String) headerSet.getHeader(HeaderSet.NAME);
-
                         Exchange exchange = createExchange();
-                        exchange.getIn().setBody(op.openInputStream());
-                        exchange.getIn().setHeader(Exchange.FILE_NAME, name);
+
+                        Message inMessage = exchange.getIn();
+                        inMessage.setHeader(Exchange.FILE_NAME, (String) headerSet.getHeader(HeaderSet.NAME));
+                        inMessage.setHeader("CamelFileLength", op.getLength());
+                        inMessage.setHeader("CamelFileContentType", op.getType());
+                        inMessage.setBody(op.openInputStream());
 
                         getProcessor().process(exchange);
                         return ResponseCodes.OBEX_HTTP_OK;
