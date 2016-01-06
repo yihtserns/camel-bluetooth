@@ -53,70 +53,79 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
     public Consumer createConsumer(Processor processor) throws Exception {
         final ExecutorService executor = getCamelContext().getExecutorServiceStrategy().newSingleThreadExecutor(this, getEndpointUri());
 
-        return new DefaultConsumer(this, processor) {
-
-            private SessionNotifier sessionNotifier;
-
-            @Override
-            protected void doStart() throws Exception {
-                super.doStart();
-
-                LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.GIAC);
-                String url = "btgoep://localhost:" + OBEX_OBJECT_PUSH_PROFILE + ";authenticate=false;encrypt=false";
-
-                sessionNotifier = (SessionNotifier) Connector.open(url);
-
-                executor.submit(new Runnable() {
-
-                    public void run() {
-                        while (true) {
-                            try {
-                                sessionNotifier.acceptAndOpen(new ServerRequestHandler() {
-
-                                    @Override
-                                    public int onPut(Operation op) {
-                                        try {
-                                            HeaderSet headerSet = op.getReceivedHeaders();
-                                            String name = (String) headerSet.getHeader(HeaderSet.NAME);
-
-                                            Exchange exchange = createExchange();
-                                            exchange.getIn().setBody(op.openInputStream());
-                                            exchange.getIn().setHeader(Exchange.FILE_NAME, name);
-
-                                            getProcessor().process(exchange);
-                                            return ResponseCodes.OBEX_HTTP_OK;
-                                        } catch (Exception ex) {
-                                            getExceptionHandler().handleException(ex);
-                                            return ResponseCodes.OBEX_HTTP_UNAVAILABLE;
-                                        } finally {
-                                            try {
-                                                op.close();
-                                            } catch (IOException ex) {
-                                                getExceptionHandler().handleException(ex);
-                                            }
-                                        }
-                                    }
-                                });
-                            } catch (IOException ex) {
-                                getExceptionHandler().handleException(ex);
-                            }
-                        }
-                    }
-                });
-            }
-
-            @Override
-            protected void doStop() throws Exception {
-                executor.shutdown();
-                sessionNotifier.close();
-                LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.NOT_DISCOVERABLE);
-                super.doStop();
-            }
-
-        };
+        return new DefaultConsumerImpl(processor, executor);
     }
 
     public boolean isSingleton() {
         return true;
+    }
+
+    private class DefaultConsumerImpl extends DefaultConsumer implements Runnable {
+
+        private final ExecutorService executor;
+
+        public DefaultConsumerImpl(Processor processor, ExecutorService executor) {
+            super(ObexObjectPushProfileEndpoint.this, processor);
+            this.executor = executor;
+        }
+        private SessionNotifier sessionNotifier;
+
+        @Override
+        protected void doStart() throws Exception {
+            super.doStart();
+
+            LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.GIAC);
+
+            String url = "btgoep://localhost:" + OBEX_OBJECT_PUSH_PROFILE + ";authenticate=false;encrypt=false";
+            sessionNotifier = (SessionNotifier) Connector.open(url);
+
+            executor.submit(this);
+        }
+
+        @Override
+        protected void doStop() throws Exception {
+            executor.shutdown();
+            sessionNotifier.close();
+            LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.NOT_DISCOVERABLE);
+            super.doStop();
+        }
+
+        @Override
+        public void run() {
+            ServerRequestHandler sendBluetoothStreamToProcessor = new ServerRequestHandler() {
+
+                @Override
+                public int onPut(Operation op) {
+                    try {
+                        HeaderSet headerSet = op.getReceivedHeaders();
+                        String name = (String) headerSet.getHeader(HeaderSet.NAME);
+
+                        Exchange exchange = createExchange();
+                        exchange.getIn().setBody(op.openInputStream());
+                        exchange.getIn().setHeader(Exchange.FILE_NAME, name);
+
+                        getProcessor().process(exchange);
+                        return ResponseCodes.OBEX_HTTP_OK;
+                    } catch (Exception ex) {
+                        getExceptionHandler().handleException(ex);
+                        return ResponseCodes.OBEX_HTTP_UNAVAILABLE;
+                    } finally {
+                        try {
+                            op.close();
+                        } catch (IOException ex) {
+                            getExceptionHandler().handleException(ex);
+                        }
+                    }
+                }
+            };
+
+            while (true) {
+                try {
+                    sessionNotifier.acceptAndOpen(sendBluetoothStreamToProcessor);
+                } catch (IOException ex) {
+                    getExceptionHandler().handleException(ex);
+                }
+            }
+        }
     }
 }
