@@ -55,6 +55,8 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
 
         return new DefaultConsumer(this, processor) {
 
+            private SessionNotifier sessionNotifier;
+
             @Override
             protected void doStart() throws Exception {
                 super.doStart();
@@ -62,7 +64,7 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                 LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.GIAC);
                 String url = "btgoep://localhost:" + OBEX_OBJECT_PUSH_PROFILE + ";authenticate=false;encrypt=false";
 
-                final SessionNotifier sessionNotifier = (SessionNotifier) Connector.open(url);
+                sessionNotifier = (SessionNotifier) Connector.open(url);
 
                 executor.submit(new Runnable() {
 
@@ -106,7 +108,7 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
             @Override
             protected void doStop() throws Exception {
                 executor.shutdown();
-
+                sessionNotifier.close();
                 super.doStop();
             }
 
