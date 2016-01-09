@@ -112,12 +112,6 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                     } catch (Exception ex) {
                         getExceptionHandler().handleException(ex);
                         return ResponseCodes.OBEX_HTTP_UNAVAILABLE;
-                    } finally {
-                        try {
-                            op.close();
-                        } catch (IOException ex) {
-                            getExceptionHandler().handleException(ex);
-                        }
                     }
                 }
             };
