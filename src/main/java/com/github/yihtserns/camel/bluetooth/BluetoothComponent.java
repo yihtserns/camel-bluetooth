@@ -27,7 +27,7 @@ public class BluetoothComponent extends DefaultComponent {
 
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        if ("opp".equals(remaining)) {
+        if (remaining.startsWith("opp")) {
             return new ObexObjectPushProfileEndpoint(uri, this);
         }
 

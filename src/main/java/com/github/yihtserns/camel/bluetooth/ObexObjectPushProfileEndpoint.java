@@ -16,11 +16,17 @@
 package com.github.yihtserns.camel.bluetooth;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import javax.bluetooth.BluetoothStateException;
 import javax.bluetooth.DiscoveryAgent;
 import javax.bluetooth.LocalDevice;
 import javax.bluetooth.UUID;
 import javax.microedition.io.Connector;
+import javax.obex.ClientSession;
 import javax.obex.HeaderSet;
 import javax.obex.Operation;
 import javax.obex.ResponseCodes;
@@ -34,6 +40,7 @@ import org.apache.camel.Processor;
 import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultConsumer;
 import org.apache.camel.impl.DefaultEndpoint;
+import org.apache.camel.impl.DefaultProducer;
 
 /**
  *
@@ -41,14 +48,53 @@ import org.apache.camel.impl.DefaultEndpoint;
  */
 public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
 
-    private static final UUID OBEX_OBJECT_PUSH_PROFILE = new UUID(0x1105);
+    static final UUID OBEX_OBJECT_PUSH_PROFILE = new UUID(0x1105);
 
     public ObexObjectPushProfileEndpoint(String endpointUri, Component component) {
         super(endpointUri, component);
     }
 
     public Producer createProducer() throws Exception {
-        throw new UnsupportedOperationException("Not supported yet.");
+        String deviceId = new URI(getEndpointUri()).getPath();
+        final String url = "btgoep:/" + deviceId + ":1;authenticate=false;encrypt=false;master=false";
+
+        return new DefaultProducer(this) {
+
+            public void process(Exchange exchange) throws Exception {
+                ClientSession clientSession = (ClientSession) Connector.open(url);
+
+                try {
+                    HeaderSet connectReply = clientSession.connect(null);
+                    if (connectReply.getResponseCode() != ResponseCodes.OBEX_HTTP_OK) {
+
+                        // TODO: How to fail?
+                        throw new IllegalStateException("Failed to connect");
+                    }
+
+                    HeaderSet operation = clientSession.createHeaderSet();
+
+                    byte[] bytes = exchange.getIn().getMandatoryBody(byte[].class);
+
+                    Operation putOperation = clientSession.put(operation);
+                    try {
+                        OutputStream os = putOperation.openOutputStream();
+                        try {
+                            os.write(bytes);
+                        } finally {
+                            os.close();
+                        }
+                    } finally {
+                        putOperation.close();
+                    }
+                } finally {
+                    try {
+                        clientSession.disconnect(null);
+                    } finally {
+                        clientSession.close();
+                    }
+                }
+            }
+        };
     }
 
     public Consumer createConsumer(Processor processor) throws Exception {
@@ -61,38 +107,51 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
         return true;
     }
 
-    private class DefaultConsumerImpl extends DefaultConsumer implements Runnable {
+    private class DefaultConsumerImpl extends DefaultConsumer implements Callable<Void> {
 
+        private CountDownLatch startSignal = new CountDownLatch(1);
+        private SessionNotifier sessionNotifier = null;
         private final ExecutorService executor;
 
         public DefaultConsumerImpl(Processor processor, ExecutorService executor) {
             super(ObexObjectPushProfileEndpoint.this, processor);
             this.executor = executor;
         }
-        private SessionNotifier sessionNotifier;
 
         @Override
         protected void doStart() throws Exception {
             super.doStart();
-
-            LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.GIAC);
-
-            String url = "btgoep://localhost:" + OBEX_OBJECT_PUSH_PROFILE + ";authenticate=false;encrypt=false";
-            sessionNotifier = (SessionNotifier) Connector.open(url);
-
             executor.submit(this);
+            startSignal.await();
         }
 
         @Override
         protected void doStop() throws Exception {
             executor.shutdown();
-            sessionNotifier.close();
-            LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.NOT_DISCOVERABLE);
+            try {
+                sessionNotifier.close();
+            } catch (IOException ex) {
+                // Can't close connection, hmm...
+            }
+            try {
+                LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.NOT_DISCOVERABLE);
+            } catch (BluetoothStateException ex) {
+                // Can't change the state, oh well
+            }
             super.doStop();
         }
 
         @Override
-        public void run() {
+        public Void call() throws BluetoothStateException, IOException {
+            try {
+                LocalDevice.getLocalDevice().setDiscoverable(DiscoveryAgent.GIAC);
+
+                String url = "btgoep://localhost:" + OBEX_OBJECT_PUSH_PROFILE + ";authenticate=false;encrypt=false";
+                sessionNotifier = (SessionNotifier) Connector.open(url);
+            } finally {
+                startSignal.countDown();
+            }
+
             ServerRequestHandler sendBluetoothStreamToProcessor = new ServerRequestHandler() {
 
                 @Override
@@ -120,9 +179,12 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                 try {
                     sessionNotifier.acceptAndOpen(sendBluetoothStreamToProcessor);
                 } catch (IOException ex) {
-                    getExceptionHandler().handleException(ex);
+                    // Session closed
+                    break;
                 }
             }
+
+            return null;
         }
     }
 }

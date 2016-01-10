@@ -52,15 +52,22 @@
             <version>${camel.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.ow2.chameleon.commons.bluecove</groupId>
+            <groupId>net.sf.bluecove</groupId>
             <artifactId>bluecove</artifactId>
-            <version>2.1.1-63</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>net.sf.bluecove</groupId>
-                    <artifactId>bluecove</artifactId>
-                </exclusion>
-            </exclusions>
+            <version>2.1.0</version>
+        </dependency>
+        <!-- For unit test --> 
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.bluecove</groupId>
+            <artifactId>bluecove-emu</artifactId>
+            <version>2.1.0</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -75,6 +82,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.12.4</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <bluecove.debug>true</bluecove.debug>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
         </plugins>
     </build>
