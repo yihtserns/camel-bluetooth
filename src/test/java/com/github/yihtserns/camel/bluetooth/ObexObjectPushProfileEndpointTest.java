@@ -29,6 +29,9 @@ import org.junit.Test;
 import static com.intel.bluetooth.EmulatorTestsHelper.startInProcessServer;
 import static com.intel.bluetooth.EmulatorTestsHelper.stopInProcessServer;
 import static com.intel.bluetooth.EmulatorTestsHelper.useThreadLocalEmulator;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.camel.CamelContext;
 import org.apache.camel.component.mock.MockEndpoint;
 
 /**
@@ -36,17 +39,33 @@ import org.apache.camel.component.mock.MockEndpoint;
  */
 public class ObexObjectPushProfileEndpointTest {
 
-    private DefaultCamelContext serverCamelContext = newCamelContext("Server");
-    private String serverBluetoothAddress;
+    private List<CamelContext> camelContexts = new ArrayList<CamelContext>();
 
     @Before
     public void startServers() throws Exception {
         startInProcessServer();
-        startServerCamelContext();
         useThreadLocalEmulator();
     }
 
-    private void startServerCamelContext() throws Exception {
+    @After
+    public void stopServers() {
+        for (CamelContext camelContext : camelContexts) {
+            try {
+                camelContext.stop();
+            } catch (Exception ex) {
+                System.err.println(ex.toString());
+                ex.printStackTrace(System.err);
+            }
+        }
+        stopInProcessServer();
+    }
+
+    @Test
+    public void canSendAndReceiveViaBluetooth() throws Exception {
+        final Container<String> serverBluetoothAddress = new Container<String>();
+        DefaultCamelContext serverCamelContext = newCamelContext("Server");
+        DefaultCamelContext clientCamelContext = newCamelContext("Client");
+
         serverCamelContext.setExecutorServiceStrategy(new DelegatingExecutorServiceStrategy(serverCamelContext.getExecutorServiceStrategy()) {
 
             @Override
@@ -60,7 +79,7 @@ public class ObexObjectPushProfileEndpointTest {
                             @Override
                             public T call() throws Exception {
                                 useThreadLocalEmulator();
-                                serverBluetoothAddress = LocalDevice.getLocalDevice().getBluetoothAddress();
+                                serverBluetoothAddress.set(LocalDevice.getLocalDevice().getBluetoothAddress());
 
                                 return callable.call();
                             }
@@ -76,42 +95,38 @@ public class ObexObjectPushProfileEndpointTest {
                 from("bt:opp").transform().body(String.class).to("mock:mock");
             }
         });
+
         serverCamelContext.start();
-    }
-
-    @After
-    public void stopServers() throws Exception {
-        try {
-            serverCamelContext.stop();
-        } finally {
-            stopInProcessServer();
-        }
-    }
-
-    @Test
-    public void canSendAndReceiveViaBluetooth() throws Exception {
-        DefaultCamelContext clientCamelContext = newCamelContext("Client");
         clientCamelContext.start();
+        MockEndpoint mock = serverCamelContext.getEndpoint("mock:mock", MockEndpoint.class);
 
-        try {
-            String someBody = "Expected Body";
+        String someBody = "Expected Body";
 
-            MockEndpoint mock = serverCamelContext.getEndpoint("mock:mock", MockEndpoint.class);
-            mock.expectedBodiesReceived(someBody);
-
-            clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress, someBody);
-
-            mock.assertIsSatisfied();
-        } finally {
-            clientCamelContext.stop();
-        }
+        mock.expectedBodiesReceived(someBody);
+        clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), someBody);
+        mock.assertIsSatisfied();
     }
 
-    private static DefaultCamelContext newCamelContext(String name) {
+    private DefaultCamelContext newCamelContext(String name) {
         DefaultCamelContext camelContext = new DefaultCamelContext();
         camelContext.setName(name);
         camelContext.disableJMX();
 
+        camelContexts.add(camelContext);
+
         return camelContext;
+    }
+
+    private static final class Container<T> {
+
+        private T obj;
+
+        public void set(T obj) {
+            this.obj = obj;
+        }
+
+        public T get() {
+            return obj;
+        }
     }
 }
