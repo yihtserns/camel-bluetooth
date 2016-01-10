@@ -31,14 +31,23 @@ import static com.intel.bluetooth.EmulatorTestsHelper.stopInProcessServer;
 import static com.intel.bluetooth.EmulatorTestsHelper.useThreadLocalEmulator;
 import java.util.ArrayList;
 import java.util.List;
+import javax.bluetooth.BluetoothStateException;
 import org.apache.camel.CamelContext;
 import org.apache.camel.component.mock.MockEndpoint;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+import org.junit.Rule;
+import org.junit.rules.ExpectedException;
 
 /**
  * @author yihtserns
  */
 public class ObexObjectPushProfileEndpointTest {
 
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
     private List<CamelContext> camelContexts = new ArrayList<CamelContext>();
 
     @Before
@@ -105,6 +114,27 @@ public class ObexObjectPushProfileEndpointTest {
         mock.expectedBodiesReceived(someBody);
         clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), someBody);
         mock.assertIsSatisfied();
+    }
+
+    @Test
+    public void shouldThrowWhenCannotStartBluetoothConsumer() throws Exception {
+        DefaultCamelContext serverCamelContext = newCamelContext("Server");
+        serverCamelContext.addRoutes(new RouteBuilder() {
+
+            @Override
+            public void configure() throws Exception {
+                from("bt:opp").to("mock:mock");
+            }
+        });
+
+        try {
+            serverCamelContext.start();
+            fail("Should throw exception");
+        } catch (Exception ex) {
+            Throwable cause = ex.getCause();
+            assertThat(cause, is(instanceOf(BluetoothStateException.class)));
+            assertThat(cause.getMessage(), is("No BluetoothStack or Adapter for current thread"));
+        }
     }
 
     private DefaultCamelContext newCamelContext(String name) {

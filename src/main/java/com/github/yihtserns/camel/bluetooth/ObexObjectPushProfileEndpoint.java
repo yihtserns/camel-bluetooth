@@ -20,7 +20,9 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import javax.bluetooth.BluetoothStateException;
 import javax.bluetooth.DiscoveryAgent;
 import javax.bluetooth.LocalDevice;
@@ -121,8 +123,13 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
         @Override
         protected void doStart() throws Exception {
             super.doStart();
-            executor.submit(this);
+            Future<Void> execution = executor.submit(this);
             startSignal.await();
+
+            if (sessionNotifier == null) {
+                // Didn't start properly, must've thrown exception
+                execution.get();
+            }
         }
 
         @Override
