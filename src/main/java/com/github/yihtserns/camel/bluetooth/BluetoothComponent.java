@@ -29,6 +29,8 @@ public class BluetoothComponent extends DefaultComponent {
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
         if (remaining.startsWith("opp")) {
             return new ObexObjectPushProfileEndpoint(uri, this);
+        } else if ("scan".equals(remaining)) {
+            return new ScanEndpoint(uri, this);
         }
 
         String msg = String.format("Only supports profile 'opp', but was '%s'",
