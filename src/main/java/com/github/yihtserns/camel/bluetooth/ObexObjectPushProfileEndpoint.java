@@ -20,7 +20,6 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import javax.bluetooth.BluetoothStateException;
