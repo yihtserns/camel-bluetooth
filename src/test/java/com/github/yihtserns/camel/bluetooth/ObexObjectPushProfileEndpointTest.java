@@ -52,12 +52,12 @@ public class ObexObjectPushProfileEndpointTest {
     private List<CamelContext> camelContexts = new ArrayList<CamelContext>();
 
     @Before
-    public void startServers() throws Exception {
+    public void initBluetoothEmulatorForCurrentThread() throws Exception {
         useThreadLocalEmulator();
     }
 
     @After
-    public void stopServers() {
+    public void stopCamelContexts() {
         for (CamelContext camelContext : camelContexts) {
             try {
                 camelContext.stop();
