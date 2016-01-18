@@ -5,12 +5,16 @@ This component allows communication with another Bluetooth-enabled device.
 URI format
 ----------
 ```
-bt:profile[?options]
+bt:<operation|profile>[?options]
 ```
 or
 ```
-bt://profile[?options]
+bt://<operation|profile>[?options]
 ```
+
+Supported Operations
+--------------------
+- `scan`
 
 Supported Profiles
 ------------------
