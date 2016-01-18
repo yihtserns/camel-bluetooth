@@ -74,7 +74,7 @@ public class ScanEndpoint extends DefaultEndpoint {
                     throw new IllegalStateException("Unable to start scanning for devices");
                 }
 
-                boolean completed = latch.await(10000, TimeUnit.MILLISECONDS);
+                boolean completed = latch.await(20000, TimeUnit.MILLISECONDS);
                 if (!completed) {
                     discoveryAgent.cancelInquiry(collectDevices);
                 }
