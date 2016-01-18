@@ -17,6 +17,7 @@ package com.github.yihtserns.camel.bluetooth;
 
 import com.github.yihtserns.camel.bluetooth.testutil.DelegatingExecutorService;
 import com.github.yihtserns.camel.bluetooth.testutil.DelegatingExecutorServiceStrategy;
+import com.github.yihtserns.camel.bluetooth.testutil.UseBluetoothEmulator;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -26,8 +27,6 @@ import org.apache.camel.impl.DefaultCamelContext;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import static com.intel.bluetooth.EmulatorTestsHelper.startInProcessServer;
-import static com.intel.bluetooth.EmulatorTestsHelper.stopInProcessServer;
 import static com.intel.bluetooth.EmulatorTestsHelper.useThreadLocalEmulator;
 import java.util.ArrayList;
 import java.util.List;
@@ -48,11 +47,12 @@ public class ObexObjectPushProfileEndpointTest {
 
     @Rule
     public ExpectedException thrown = ExpectedException.none();
+    @Rule
+    public UseBluetoothEmulator btEmulator = new UseBluetoothEmulator();
     private List<CamelContext> camelContexts = new ArrayList<CamelContext>();
 
     @Before
     public void startServers() throws Exception {
-        startInProcessServer();
         useThreadLocalEmulator();
     }
 
@@ -66,7 +66,6 @@ public class ObexObjectPushProfileEndpointTest {
                 ex.printStackTrace(System.err);
             }
         }
-        stopInProcessServer();
     }
 
     @Test
