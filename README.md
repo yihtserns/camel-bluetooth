@@ -12,6 +12,21 @@ or
 bt://<operation|profile>[?options]
 ```
 
+Examples
+--------
+### Accept files via Bluetooth and save them in a directory
+```groovy
+from("bt://opp").to("file://files");
+```
+
+### Search nearby Bluetooth devices
+```groovy
+import javax.bluetooth.RemoteDevice;
+
+RemoteDevice[] devices = camelContext.createProducerTemplate().requestBody("bt://scan", null, RemoteDevice[].class);
+...
+```
+
 Supported Operations
 --------------------
 - `scan`
