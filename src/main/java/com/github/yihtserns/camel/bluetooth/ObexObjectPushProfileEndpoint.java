@@ -59,43 +59,7 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
         String deviceId = new URI(getEndpointUri()).getPath();
         final String url = "btgoep:/" + deviceId + ":1;authenticate=false;encrypt=false;master=false";
 
-        return new DefaultProducer(this) {
-
-            public void process(Exchange exchange) throws Exception {
-                ClientSession clientSession = (ClientSession) Connector.open(url);
-
-                try {
-                    HeaderSet connectReply = clientSession.connect(null);
-                    if (connectReply.getResponseCode() != ResponseCodes.OBEX_HTTP_OK) {
-
-                        // TODO: How to fail?
-                        throw new IllegalStateException("Failed to connect");
-                    }
-
-                    HeaderSet operation = clientSession.createHeaderSet();
-
-                    byte[] bytes = exchange.getIn().getMandatoryBody(byte[].class);
-
-                    Operation putOperation = clientSession.put(operation);
-                    try {
-                        OutputStream os = putOperation.openOutputStream();
-                        try {
-                            os.write(bytes);
-                        } finally {
-                            os.close();
-                        }
-                    } finally {
-                        putOperation.close();
-                    }
-                } finally {
-                    try {
-                        clientSession.disconnect(null);
-                    } finally {
-                        clientSession.close();
-                    }
-                }
-            }
-        };
+        return new DefaultProducerImpl(url);
     }
 
     public Consumer createConsumer(Processor processor) throws Exception {
@@ -106,6 +70,51 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
 
     public boolean isSingleton() {
         return true;
+    }
+
+    private class DefaultProducerImpl extends DefaultProducer {
+
+        private final String url;
+
+        public DefaultProducerImpl(String url) {
+            super(ObexObjectPushProfileEndpoint.this);
+            this.url = url;
+        }
+
+        public void process(Exchange exchange) throws Exception {
+            ClientSession clientSession = (ClientSession) Connector.open(url);
+
+            try {
+                HeaderSet connectReply = clientSession.connect(null);
+                if (connectReply.getResponseCode() != ResponseCodes.OBEX_HTTP_OK) {
+
+                    // TODO: How to fail?
+                    throw new IllegalStateException("Failed to connect");
+                }
+
+                HeaderSet operation = clientSession.createHeaderSet();
+
+                byte[] bytes = exchange.getIn().getMandatoryBody(byte[].class);
+
+                Operation putOperation = clientSession.put(operation);
+                try {
+                    OutputStream os = putOperation.openOutputStream();
+                    try {
+                        os.write(bytes);
+                    } finally {
+                        os.close();
+                    }
+                } finally {
+                    putOperation.close();
+                }
+            } finally {
+                try {
+                    clientSession.disconnect(null);
+                } finally {
+                    clientSession.close();
+                }
+            }
+        }
     }
 
     private class DefaultConsumerImpl extends DefaultConsumer implements Callable<Void> {
