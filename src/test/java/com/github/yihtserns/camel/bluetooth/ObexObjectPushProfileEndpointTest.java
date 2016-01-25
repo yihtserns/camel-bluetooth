@@ -38,15 +38,12 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import org.junit.Rule;
-import org.junit.rules.ExpectedException;
 
 /**
  * @author yihtserns
  */
 public class ObexObjectPushProfileEndpointTest {
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
     @Rule
     public UseBluetoothEmulator btEmulator = new UseBluetoothEmulator();
     private List<CamelContext> camelContexts = new ArrayList<CamelContext>();
