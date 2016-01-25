@@ -20,6 +20,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.net.URLConnection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -100,7 +101,7 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                 HeaderSet operation = clientSession.createHeaderSet();
                 operation.setHeader(HeaderSet.NAME, file.getName());
                 operation.setHeader(HeaderSet.LENGTH, (long) file.length());
-                operation.setHeader(HeaderSet.TYPE, FileTypeMap.getDefaultFileTypeMap().getContentType(file));
+                operation.setHeader(HeaderSet.TYPE, URLConnection.guessContentTypeFromName(file.getName()));
 
                 Operation putOperation = clientSession.put(operation);
                 try {

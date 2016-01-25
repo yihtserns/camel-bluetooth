@@ -122,7 +122,7 @@ public class ObexObjectPushProfileEndpointTest {
 
         Map<String, Object> expectedResult = new HashMap<String, Object>();
         expectedResult.put(Exchange.FILE_NAME, file.getName());
-        expectedResult.put("CamelFileContentType", FileTypeMap.getDefaultFileTypeMap().getContentType(file));
+        expectedResult.put("CamelFileContentType", "text/plain");
         expectedResult.put("CamelFileLength", file.length());
         expectedResult.put("Body", expectedBody);
 
