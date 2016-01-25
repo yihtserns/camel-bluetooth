@@ -15,6 +15,8 @@
  */
 package com.github.yihtserns.camel.bluetooth;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -22,6 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import javax.activation.FileTypeMap;
 import javax.bluetooth.BluetoothStateException;
 import javax.bluetooth.DiscoveryAgent;
 import javax.bluetooth.LocalDevice;
@@ -42,6 +45,7 @@ import org.apache.camel.Producer;
 import org.apache.camel.impl.DefaultConsumer;
 import org.apache.camel.impl.DefaultEndpoint;
 import org.apache.camel.impl.DefaultProducer;
+import org.apache.camel.util.IOHelper;
 
 /**
  *
@@ -91,16 +95,18 @@ public class ObexObjectPushProfileEndpoint extends DefaultEndpoint {
                     // TODO: How to fail?
                     throw new IllegalStateException("Failed to connect");
                 }
+                File file = exchange.getIn().getMandatoryBody(File.class);
 
                 HeaderSet operation = clientSession.createHeaderSet();
-
-                byte[] bytes = exchange.getIn().getMandatoryBody(byte[].class);
+                operation.setHeader(HeaderSet.NAME, file.getName());
+                operation.setHeader(HeaderSet.LENGTH, (long) file.length());
+                operation.setHeader(HeaderSet.TYPE, FileTypeMap.getDefaultFileTypeMap().getContentType(file));
 
                 Operation putOperation = clientSession.put(operation);
                 try {
                     OutputStream os = putOperation.openOutputStream();
                     try {
-                        os.write(bytes);
+                        IOHelper.copyAndCloseInput(new FileInputStream(file), os);
                     } finally {
                         os.close();
                     }

@@ -28,16 +28,25 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import static com.intel.bluetooth.EmulatorTestsHelper.useThreadLocalEmulator;
+import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import javax.activation.FileTypeMap;
 import javax.bluetooth.BluetoothStateException;
 import org.apache.camel.CamelContext;
+import org.apache.camel.Exchange;
+import org.apache.camel.Expression;
+import org.apache.camel.Message;
 import org.apache.camel.component.mock.MockEndpoint;
+import org.apache.commons.io.FileUtils;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * @author yihtserns
@@ -46,6 +55,8 @@ public class ObexObjectPushProfileEndpointTest {
 
     @Rule
     public UseBluetoothEmulator btEmulator = new UseBluetoothEmulator();
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
     private List<CamelContext> camelContexts = new ArrayList<CamelContext>();
 
     @Before
@@ -97,7 +108,7 @@ public class ObexObjectPushProfileEndpointTest {
         serverCamelContext.addRoutes(new RouteBuilder() {
             @Override
             public void configure() throws Exception {
-                from("bt:opp").transform().body(String.class).to("mock:mock");
+                from("bt:opp").transform(toMap()).to("mock:mock");
             }
         });
 
@@ -106,9 +117,17 @@ public class ObexObjectPushProfileEndpointTest {
         MockEndpoint mock = serverCamelContext.getEndpoint("mock:mock", MockEndpoint.class);
 
         String expectedBody = "Expected Body";
+        File file = tempFolder.newFile("expected.txt");
+        FileUtils.write(file, expectedBody);
 
-        mock.expectedBodiesReceived(expectedBody);
-        clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), expectedBody);
+        Map<String, Object> expectedResult = new HashMap<String, Object>();
+        expectedResult.put(Exchange.FILE_NAME, file.getName());
+        expectedResult.put("CamelFileContentType", FileTypeMap.getDefaultFileTypeMap().getContentType(file));
+        expectedResult.put("CamelFileLength", file.length());
+        expectedResult.put("Body", expectedBody);
+
+        mock.expectedBodiesReceived(expectedResult);
+        clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), file);
         mock.assertIsSatisfied();
     }
 
@@ -141,6 +160,21 @@ public class ObexObjectPushProfileEndpointTest {
         camelContexts.add(camelContext);
 
         return camelContext;
+    }
+
+    private static Expression toMap() {
+        return new Expression() {
+
+            public <T> T evaluate(Exchange exchange, Class<T> type) {
+                Message inMessage = exchange.getIn();
+
+                Map<String, Object> map = new HashMap<String, Object>();
+                map.put("Body", inMessage.getBody(String.class));
+                map.putAll(inMessage.getHeaders());
+
+                return type.cast(map);
+            }
+        };
     }
 
     private static final class Container<T> {
