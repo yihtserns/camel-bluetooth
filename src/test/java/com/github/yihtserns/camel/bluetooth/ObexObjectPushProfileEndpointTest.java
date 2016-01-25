@@ -30,14 +30,10 @@ import org.junit.Test;
 import static com.intel.bluetooth.EmulatorTestsHelper.useThreadLocalEmulator;
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import javax.bluetooth.BluetoothStateException;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
-import org.apache.camel.Expression;
-import org.apache.camel.Message;
 import org.apache.camel.component.mock.MockEndpoint;
 import org.apache.commons.io.FileUtils;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -107,7 +103,7 @@ public class ObexObjectPushProfileEndpointTest {
         serverCamelContext.addRoutes(new RouteBuilder() {
             @Override
             public void configure() throws Exception {
-                from("bt:opp").transform(toMap()).to("mock:mock");
+                from("bt:opp").transform().body(String.class).to("mock:mock");
             }
         });
 
@@ -119,13 +115,10 @@ public class ObexObjectPushProfileEndpointTest {
         File file = tempFolder.newFile("expected.txt");
         FileUtils.write(file, expectedBody);
 
-        Map<String, Object> expectedResult = new HashMap<String, Object>();
-        expectedResult.put(Exchange.FILE_NAME, file.getName());
-        expectedResult.put("CamelFileContentType", "text/plain");
-        expectedResult.put("CamelFileLength", file.length());
-        expectedResult.put("Body", expectedBody);
-
-        mock.expectedBodiesReceived(expectedResult);
+        mock.expectedBodiesReceived(expectedBody);
+        mock.message(0).header(Exchange.FILE_NAME).isEqualTo(file.getName());
+        mock.message(0).header("CamelFileLength").isEqualTo(file.length());
+        mock.message(0).header("CamelFileContentType").isEqualTo("text/plain");
         clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), file);
         mock.assertIsSatisfied();
     }
@@ -159,21 +152,6 @@ public class ObexObjectPushProfileEndpointTest {
         camelContexts.add(camelContext);
 
         return camelContext;
-    }
-
-    private static Expression toMap() {
-        return new Expression() {
-
-            public <T> T evaluate(Exchange exchange, Class<T> type) {
-                Message inMessage = exchange.getIn();
-
-                Map<String, Object> map = new HashMap<String, Object>();
-                map.put("Body", inMessage.getBody(String.class));
-                map.putAll(inMessage.getHeaders());
-
-                return type.cast(map);
-            }
-        };
     }
 
     private static final class Container<T> {
