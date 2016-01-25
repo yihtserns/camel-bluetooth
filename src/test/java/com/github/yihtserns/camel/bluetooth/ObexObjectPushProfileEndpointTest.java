@@ -105,10 +105,10 @@ public class ObexObjectPushProfileEndpointTest {
         clientCamelContext.start();
         MockEndpoint mock = serverCamelContext.getEndpoint("mock:mock", MockEndpoint.class);
 
-        String someBody = "Expected Body";
+        String expectedBody = "Expected Body";
 
-        mock.expectedBodiesReceived(someBody);
-        clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), someBody);
+        mock.expectedBodiesReceived(expectedBody);
+        clientCamelContext.createProducerTemplate().sendBody("bt:opp/" + serverBluetoothAddress.get(), expectedBody);
         mock.assertIsSatisfied();
     }
 
